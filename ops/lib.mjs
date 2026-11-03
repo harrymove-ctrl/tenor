@@ -6,10 +6,16 @@ import { createPublicClient, createWalletClient, defineChain, http, parseAbi } f
 import { privateKeyToAccount } from "viem/accounts";
 
 export const ROOT = path.resolve(import.meta.dirname, "..");
-const DEPLOYMENTS = path.join(ROOT, "deployments", "31611.json");
+
+// TENOR_NETWORK=local rehearses everything on anvil (contracts/script/LocalMezo.s.sol)
+// with anvil's public dev key; the default is Mezo testnet with contracts/.env.
+export const LOCAL = process.env.TENOR_NETWORK === "local";
+const LOCAL_RPC = "http://127.0.0.1:8547";
+const ANVIL_KEY_0 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // anvil's well-known dev key
+const DEPLOYMENTS = path.join(ROOT, "deployments", LOCAL ? "31611-local.json" : "31611.json");
 
 /** Canonical Mezo testnet addresses, checked on chain 2026-11-03 (see reports/mezo-address-book.md in mezo-buildathon). */
-export const MEZO = {
+const TESTNET = {
   musd: "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
   smusd: "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16",
   btc: "0x7b7C000000000000000000000000000000000000",
@@ -17,6 +23,7 @@ export const MEZO = {
   router: "0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9",
   btcMusdPool: "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
 };
+export const MEZO = LOCAL ? JSON.parse(readFileSync(path.join(ROOT, "deployments", "local-mezo.json"), "utf8")) : TESTNET;
 
 export const MATURITIES = [
   { label: "12NOV26", maturity: Date.UTC(2026, 10, 12, 12) / 1000, seed: 150 },
@@ -34,17 +41,27 @@ function loadEnv() {
   return env;
 }
 
-const env = loadEnv();
+const env = LOCAL ? { DEPLOYER_PRIVATE_KEY: ANVIL_KEY_0, MEZO_TESTNET_RPC: LOCAL_RPC } : loadEnv();
 export const chain = defineChain({
   id: 31611,
-  name: "Mezo Testnet",
+  name: LOCAL ? "Local Mezo (anvil)" : "Mezo Testnet",
   nativeCurrency: { name: "Bitcoin", symbol: "BTC", decimals: 18 },
   rpcUrls: { default: { http: [env.MEZO_TESTNET_RPC || "https://rpc.test.mezo.org"] } },
-  blockExplorers: { default: { name: "Mezo Explorer", url: "https://explorer.test.mezo.org" } },
+  blockExplorers: { default: { name: "Mezo Explorer", url: LOCAL ? "local" : "https://explorer.test.mezo.org" } },
 });
 export const account = privateKeyToAccount(env.DEPLOYER_PRIVATE_KEY);
 export const pub = createPublicClient({ chain, transport: http(undefined, { timeout: 60_000, retryCount: 4 }) });
 export const wallet = createWalletClient({ chain, account, transport: http(undefined, { timeout: 60_000, retryCount: 4 }) });
+
+/** Chain time; local mode can move it with `warpTo`. */
+export async function chainNow() {
+  return Number((await pub.getBlock()).timestamp);
+}
+export async function warpTo(timestamp) {
+  if (!LOCAL) throw new Error("warpTo is local only");
+  await pub.request({ method: "evm_setNextBlockTimestamp", params: [timestamp] });
+  await pub.request({ method: "evm_mine", params: [] });
+}
 export const explorer = (kind, value) => `${chain.blockExplorers.default.url}/${kind}/${value}`;
 
 export function artifact(name) {
@@ -81,7 +98,7 @@ export const smusdAbi = parseAbi([
 ]);
 
 export function readDeployments() {
-  return existsSync(DEPLOYMENTS) ? JSON.parse(readFileSync(DEPLOYMENTS, "utf8")) : { chainId: 31611, mezo: MEZO, txs: [] };
+  return existsSync(DEPLOYMENTS) ? JSON.parse(readFileSync(DEPLOYMENTS, "utf8")) : { chainId: 31611, network: LOCAL ? "local" : "testnet", mezo: MEZO, txs: [] };
 }
 export function writeDeployments(d) {
   writeFileSync(DEPLOYMENTS, `${JSON.stringify(d, null, 2)}\n`);

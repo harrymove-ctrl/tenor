@@ -2,7 +2,7 @@
 // mints PT+YT, adds equal PT and MUSD (Tigris stable pools require a 1:1 first
 // deposit), then sells PT in small steps until the implied fixed rate reaches
 // TARGET_APR. Idempotent: a pool that already has reserves is left alone.
-import { MEZO, MATURITIES, account, artifact, ensureApproval, erc20, poolAbi, pub, readDeployments, record, requireFunds, routerAbi, write } from "./lib.mjs";
+import { MEZO, MATURITIES, account, artifact, chainNow, ensureApproval, erc20, poolAbi, pub, readDeployments, record, requireFunds, routerAbi, write } from "./lib.mjs";
 
 const E18 = 10n ** 18n;
 const TARGET_APR = 0.03;
@@ -17,7 +17,7 @@ async function impliedApr(entry) {
   const probe = 10n ** 16n; // 0.01 PT
   const out = await pub.readContract({ address: entry.pool, abi: poolAbi, functionName: "getAmountOut", args: [probe, entry.pt] });
   const price = Number(out) / Number(probe);
-  const secondsLeft = entry.maturity - Math.floor(Date.now() / 1000);
+  const secondsLeft = entry.maturity - (await chainNow());
   return { price, apr: (1 / price - 1) * ((365 * 86400) / secondsLeft) };
 }
 

@@ -12,3 +12,7 @@ artifacts/
 web/qa/artifacts/
 web/test-results/
 .claude/
+contracts/broadcast/
+deployments/31611-local.json
+deployments/local-mezo.json
+docs/proof-local.md

@@ -5,7 +5,7 @@
 // npm run deploy             deploy for real
 // npm run deploy -- --dry    simulate every step with eth_call, send nothing
 import { encodeDeployData, decodeEventLog, getAddress } from "viem";
-import { MEZO, MATURITIES, account, artifact, deploy, pub, readDeployments, record, requireFunds, write, writeDeployments, poolFactoryAbi } from "./lib.mjs";
+import { LOCAL, MEZO, MATURITIES, account, artifact, deploy, pub, readDeployments, record, requireFunds, write, writeDeployments, poolFactoryAbi } from "./lib.mjs";
 
 const dry = process.argv.includes("--dry");
 const FEE_BPS = 500n;
@@ -80,7 +80,7 @@ async function main() {
   }
 
   writeDeployments(d);
-  console.log("\nDeployed. deployments/31611.json:");
+  console.log(`\nDeployed (${LOCAL ? "local rehearsal" : "Mezo testnet"}).`);
   console.log(JSON.stringify({ factory: d.factory, router: d.router, markets: d.markets }, null, 2));
 }
 
