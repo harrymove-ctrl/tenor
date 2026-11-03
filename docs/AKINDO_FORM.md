@@ -12,7 +12,7 @@ Fixed-rate MUSD on Mezo: lock what sMUSD pays, or trade it.
 
 ## Track and status
 
-Track 1 (DeFi). Entirely new in Wave 2. Readiness: testnet deployment (TODO: confirm after `npm run deploy`).
+Track 1 (DeFi). Entirely new in Wave 2. Readiness: testnet deployment. TenorFactory `0x6326349e8ebb72e14a18d280f7cf54611c904945` and TenorRouter `0xc012212d50946318f9236547949e73fe9f2fbd71` on Mezo testnet, with markets maturing 2026-11-12 and 2026-12-31; the live proof passed 6 of 6 checks (see `docs/proof.md`).
 
 ## Links
 

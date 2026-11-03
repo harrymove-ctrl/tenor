@@ -55,7 +55,11 @@ const routerAbi = parseAbi([
   "function buyPrincipal(address,address,uint256,uint256,address,uint256) returns (uint256)",
   "function buyYield(address,address,uint256,uint256,address,uint256) returns (uint256)",
 ]);
-const poolAbi = parseAbi(["function getAmountOut(uint256,address) view returns (uint256)"]);
+const poolAbi = parseAbi([
+  "function getAmountOut(uint256,address) view returns (uint256)",
+  "function getReserves() view returns (uint256,uint256,uint256)",
+  "function token0() view returns (address)",
+]);
 const tigrisRouterAbi = parseAbi([
   "struct Route { address from; address to; bool stable; address factory; }",
   "function swapExactTokensForTokens(uint256,uint256,Route[],address,uint256) returns (uint256[])",
@@ -111,6 +115,29 @@ export async function readPosition(m: MarketEntry, who: Address): Promise<Positi
   const left = m.maturity - now;
   const n = (x: bigint) => Number(formatUnits(x, 18));
   return { btc: n(btc), musd: n(mb), pt: n(pt), yt: n(yt), claimable: n(claimable), settled, ptPrice, impliedApr: left > 0 ? (1 / ptPrice - 1) * ((365 * 86400) / left) : 0 };
+}
+
+export type MarketStats = { impliedApr: number; ptPrice: number; ptDepth: number; musdDepth: number; matured: boolean };
+
+/** Public market state, no wallet needed. */
+export async function readMarketStats(m: MarketEntry): Promise<MarketStats> {
+  const probe = 10n ** 16n;
+  const [out, reserves, token0, block] = await Promise.all([
+    pub.readContract({ address: m.pool, abi: poolAbi, functionName: "getAmountOut", args: [probe, m.pt] }),
+    pub.readContract({ address: m.pool, abi: poolAbi, functionName: "getReserves" }),
+    pub.readContract({ address: m.pool, abi: poolAbi, functionName: "token0" }),
+    pub.getBlock(),
+  ]);
+  const ptFirst = token0.toLowerCase() === m.pt.toLowerCase();
+  const ptPrice = Number(out) / Number(probe);
+  const left = m.maturity - Number(block.timestamp);
+  return {
+    ptPrice,
+    impliedApr: left > 0 ? (1 / ptPrice - 1) * ((365 * 86400) / left) : 0,
+    ptDepth: Number(formatUnits(ptFirst ? reserves[0] : reserves[1], 18)),
+    musdDepth: Number(formatUnits(ptFirst ? reserves[1] : reserves[0], 18)),
+    matured: left <= 0,
+  };
 }
 
 export async function quoteFixed(m: MarketEntry, musdIn: string) {

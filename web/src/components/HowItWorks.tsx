@@ -1,7 +1,18 @@
 import { Accordion } from "@/components/interior/accordion";
 import { CopyButton } from "@/components/interior/copy-button";
+import { DEPLOYMENT, NETWORK } from "@/lib/live";
+
+const TENOR =
+  DEPLOYMENT && NETWORK === "testnet"
+    ? [
+        { name: "TenorFactory (Mezo testnet)", address: DEPLOYMENT.factory },
+        { name: "TenorRouter (Mezo testnet)", address: DEPLOYMENT.router },
+        ...Object.entries(DEPLOYMENT.markets).map(([k, m]) => ({ name: `TenorMarket ${k} (Mezo testnet)`, address: m.market })),
+      ]
+    : [];
 
 const CONTRACTS = [
+  ...TENOR,
   { name: "sMUSD (Mezo mainnet)", address: "0xb4D498029af77680cD1eF828b967f010d06C51CC" },
   { name: "Tigris PoolFactory (Mezo mainnet)", address: "0x83FE469C636C4081b87bA5b3Ae9991c6Ed104248" },
 ];
@@ -59,7 +70,7 @@ export function HowItWorks() {
                     <CopyButton value={c.address} label="Copy" className="shrink-0" />
                   </li>
                 ))}
-                <li className="text-xs text-stone-500 dark:text-stone-400">Tenor's own testnet addresses appear here after deployment.</li>
+                {TENOR.length === 0 && <li className="text-xs text-stone-500 dark:text-stone-400">Tenor's own testnet addresses appear here after deployment.</li>}
               </ul>
             ),
           },

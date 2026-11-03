@@ -20,8 +20,10 @@ import {
   lockFixed,
   quoteBet,
   quoteFixed,
+  readMarketStats,
   readPosition,
   redeemAll,
+  type MarketStats,
   type Position,
   type Session,
 } from "@/lib/live";
@@ -57,7 +59,24 @@ function Connected() {
   const [raw, setRaw] = useState("");
   const [quote, setQuote] = useState<{ text: string; ok: boolean } | null>(null);
   const [run, setRun] = useState<Run | null>(null);
+  const [stats, setStats] = useState<Record<string, MarketStats>>({});
   const busy = run?.status === "running";
+
+  // Public stats for every market, refreshed without a wallet.
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      Promise.all(keys.map(async (k) => [k, await readMarketStats(DEPLOYMENT!.markets[k])] as const))
+        .then((rows) => alive && setStats(Object.fromEntries(rows)))
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -178,12 +197,39 @@ function Connected() {
         </p>
       )}
 
-      <SegmentedControl
+      {session && <SegmentedControl
         label="Maturity"
         value={marketKey}
         onValueChange={(k) => (setMarketKey(k), setRun(null))}
         options={keys.map((k) => ({ value: k, label: k }))}
-      />
+      />}
+
+      {!session && (
+        <ul className="flex flex-col gap-2">
+          {keys.map((k) => {
+            const st = stats[k];
+            const m = DEPLOYMENT!.markets[k];
+            return (
+              <li key={k} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-3 py-2.5 dark:border-white/10">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Matures {k}</p>
+                  <p className="truncate text-xs text-stone-500 tabular-nums dark:text-stone-400">
+                    {st ? `Pool ${fmt(st.ptDepth, 0)} PT / ${fmt(st.musdDepth, 0)} MUSD` : "Reading chain…"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold tabular-nums">{st ? (st.matured ? "Matured" : `${fmt(st.impliedApr * 100, 2)}%`) : "…"}</p>
+                  {EXPLORER && (
+                    <a className="text-xs text-stone-500 underline dark:text-stone-400" href={`${EXPLORER}/address/${m.market}`} target="_blank" rel="noreferrer">
+                      market
+                    </a>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {session && pos && (
         <>

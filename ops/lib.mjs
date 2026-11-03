@@ -120,10 +120,25 @@ async function gasFor(request) {
   return padded < floor ? floor : padded > cap ? cap : padded;
 }
 
+// The public testnet RPC sits behind a load balancer and can lag in serving
+// receipts, so poll for up to five minutes instead of viem's default wait.
+async function waitReceipt(hash) {
+  for (let i = 0; i < 150; i++) {
+    try {
+      const r = await pub.getTransactionReceipt({ hash });
+      if (r) return r;
+    } catch {
+      // not indexed yet
+    }
+    await new Promise((res) => setTimeout(res, 2_000));
+  }
+  throw new Error(`no receipt after 5 minutes for ${explorer("tx", hash)}; check it, then rerun (steps are idempotent)`);
+}
+
 export async function send(label, request) {
   const gas = await gasFor(request);
   const hash = await wallet.sendTransaction({ ...request, gas });
-  const receipt = await pub.waitForTransactionReceipt({ hash, timeout: 180_000 });
+  const receipt = await waitReceipt(hash);
   if (receipt.status !== "success") throw new Error(`${label} reverted: ${explorer("tx", hash)}`);
   console.log(`  ok  ${label}  ${explorer("tx", hash)}`);
   return receipt;
