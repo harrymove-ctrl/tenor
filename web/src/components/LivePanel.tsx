@@ -7,6 +7,7 @@ import { TaskSteps } from "@/components/interior/task-steps";
 import { CopyButton } from "@/components/interior/copy-button";
 import { cleanAmount } from "@/components/TradeCard";
 import { fmt } from "@/lib/sim";
+import { newReceipt, type Receipt, type ReceiptKind } from "@/lib/receipt";
 import {
   DEPLOYMENT,
   EXPLORER,
@@ -23,6 +24,7 @@ import {
   readMarketStats,
   readPosition,
   redeemAll,
+  txMeta,
   type MarketStats,
   type Position,
   type Session,
@@ -34,7 +36,9 @@ type Run = { action: string; steps: { label: string; hash?: Hash }[]; status: "r
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const txUrl = (h: Hash) => (EXPLORER ? `${EXPLORER}/tx/${h}` : null);
 
-export function LivePanel() {
+type LiveProps = { onReceipt?: (r: Receipt) => void };
+
+export function LivePanel({ onReceipt }: LiveProps) {
   if (!DEPLOYMENT) {
     return (
       <section className="card flex flex-col gap-2" aria-label="Live testnet">
@@ -45,10 +49,10 @@ export function LivePanel() {
       </section>
     );
   }
-  return <Connected />;
+  return <Connected onReceipt={onReceipt} />;
 }
 
-function Connected() {
+function Connected({ onReceipt }: LiveProps) {
   const keys = Object.keys(DEPLOYMENT!.markets);
   const [marketKey, setMarketKey] = useState(keys[keys.length - 1]);
   const market = DEPLOYMENT!.markets[marketKey];
@@ -122,13 +126,27 @@ function Connected() {
     return () => clearTimeout(t);
   }, [raw, mode, market, matured]);
 
-  async function perform(action: string, fn: (onStep: (label: string, hash: Hash) => void) => Promise<unknown>) {
+  async function perform(
+    action: string,
+    fn: (onStep: (label: string, hash: Hash) => void) => Promise<unknown>,
+    receipt?: { kind: ReceiptKind; rate?: number },
+  ) {
     setRun({ action, steps: [], status: "running" });
     try {
-      await fn((label, hash) => setRun((r) => (r ? { ...r, steps: [...r.steps, { label, hash }] } : r)));
+      const before = session ? await readPosition(market, session.address) : null;
+      const hash = (await fn((label, h) => setRun((r) => (r ? { ...r, steps: [...r.steps, { label, hash: h }] } : r)))) as Hash | undefined;
       setRun((r) => (r ? { ...r, status: "done" } : r));
       setRaw("");
       await refresh();
+      if (receipt && hash && session && before && onReceipt) {
+        const [after, meta] = await Promise.all([readPosition(market, session.address), txMeta(hash)]);
+        const d = { musd: before.musd - after.musd, pt: after.pt - before.pt, yt: after.yt - before.yt };
+        const base = { network: NETWORK, at: Math.floor(Date.now() / 1000), market: marketKey, maturity: market.maturity, tx: hash, account: session.address, ...meta };
+        if (receipt.kind === "fixed") onReceipt(newReceipt({ ...base, kind: "fixed", paid: d.musd, received: d.pt, payout: d.pt, rate: receipt.rate }));
+        if (receipt.kind === "bet") onReceipt(newReceipt({ ...base, kind: "bet", paid: d.musd, received: d.yt, rate: receipt.rate }));
+        if (receipt.kind === "claim") onReceipt(newReceipt({ ...base, kind: "claim", received: -d.musd }));
+        if (receipt.kind === "redeem") onReceipt(newReceipt({ ...base, kind: "redeem", paid: -d.pt, received: -d.musd }));
+      }
     } catch (e) {
       setRun((r) => (r ? { ...r, status: "error", message: explainError(e) } : r));
       throw e;
@@ -139,11 +157,15 @@ function Connected() {
     if (mode === "fixed") {
       const q = await quoteFixed(market, raw);
       if (!q) throw new Error("No quote");
-      await perform("Lock fixed rate", (s) => lockFixed(session!, market, q.amount, (q.ptOut * 995n) / 1000n, s));
+      const days = (market.maturity * 1000 - Date.now()) / 86_400_000;
+      const rate = (Number(q.ptOut) / Number(q.amount) - 1) * (365 / days);
+      await perform("Lock fixed rate", (s) => lockFixed(session!, market, q.amount, (q.ptOut * 995n) / 1000n, s), { kind: "fixed", rate });
     } else {
       const q = await quoteBet(market, raw);
       if (!q) throw new Error("No quote");
-      await perform("Buy YT", (s) => buyYield(session!, market, q.ytOut, q.amount, s));
+      const years = (market.maturity * 1000 - Date.now()) / (365 * 86_400_000);
+      const breakEven = Number(q.cost) / (Number(q.ytOut) * years * 0.95);
+      await perform("Buy YT", (s) => buyYield(session!, market, q.ytOut, q.amount, s), { kind: "bet", rate: breakEven });
     }
   }
 
@@ -293,14 +315,14 @@ function Connected() {
             </div>
           ) : (
             pos.pt > 0 && (
-              <HoldToConfirm onConfirm={() => perform("Redeem", (s) => redeemAll(session, market, s)).catch(() => {})} confirmLabel="Sent" className="w-full">
+              <HoldToConfirm onConfirm={() => perform("Redeem", (s) => redeemAll(session, market, s), { kind: "redeem" }).catch(() => {})} confirmLabel="Sent" className="w-full">
                 {`Hold to redeem ${fmt(pos.pt, 2)} PT`}
               </HoldToConfirm>
             )
           )}
 
           {pos.claimable > 0 && (
-            <LoadingButton className="w-full justify-center" disabled={busy} onAction={() => perform("Claim", (s) => claim(session, market, s))} pendingLabel="Claiming" successLabel="Claimed">
+            <LoadingButton className="w-full justify-center" disabled={busy} onAction={() => perform("Claim", (s) => claim(session, market, s), { kind: "claim" })} pendingLabel="Claiming" successLabel="Claimed">
               {`Claim ${fmt(pos.claimable, 6)} MUSD`}
             </LoadingButton>
           )}

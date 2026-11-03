@@ -6,11 +6,21 @@ import { RateStrip } from "@/components/RateStrip";
 import { DemoControls } from "@/components/DemoControls";
 import { HowItWorks } from "@/components/HowItWorks";
 import { LivePanel } from "@/components/LivePanel";
-import { advance, buyBet, claim, initialMarket, lockFixed, redeem, setRates, type Market } from "@/lib/sim";
+import { ReceiptModal } from "@/components/receipt/ReceiptModal";
+import { StampBook } from "@/components/receipt/StampBook";
+import { advance, buyBet, claim, initialMarket, lockFixed, quoteBet, quoteFixed, redeem, setRates, type Market } from "@/lib/sim";
+import { decodeReceipt, loadReceipts, newReceipt, saveReceipts, type Receipt } from "@/lib/receipt";
 import { fetchRates, SNAPSHOT, type Rates } from "@/lib/rates";
 
 // ?layout=split shows the two trade cards side by side (variant B).
-const layout = new URLSearchParams(window.location.search).get("layout") === "split" ? "split" : "single";
+const params = new URLSearchParams(window.location.search);
+const layout = params.get("layout") === "split" ? "split" : "single";
+const sharedReceipt = params.get("r") ? decodeReceipt(params.get("r")!) : null;
+
+const label = (maturity: number) =>
+  new Date(maturity * 1000).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit", timeZone: "UTC" }).replace(/ /g, "").toUpperCase();
+
+type Open = { receipt: Receipt; fresh: boolean; shared: boolean } | null;
 
 export default function App() {
   const [rates, setRatesState] = useState<Rates | null>(null);
@@ -23,7 +33,39 @@ export default function App() {
     return () => ctrl.abort();
   }, []);
 
-  const execute = (m: Mode, amount: number) => setMarket((s) => (m === "fixed" ? lockFixed(s, amount) : buyBet(s, amount)));
+  const [receipts, setReceipts] = useState<Receipt[]>(loadReceipts);
+  const [open, setOpen] = useState<Open>(sharedReceipt ? { receipt: sharedReceipt, fresh: true, shared: true } : null);
+
+  const addReceipt = (r: Receipt) => {
+    setReceipts((list) => {
+      const next = [r, ...list].slice(0, 24);
+      saveReceipts(next);
+      return next;
+    });
+    setOpen({ receipt: r, fresh: true, shared: false });
+  };
+  const demoReceipt = (fields: Partial<Receipt> & Pick<Receipt, "kind">) =>
+    newReceipt({ network: "demo", at: market.now, market: label(market.maturity), maturity: market.maturity, ...fields });
+
+  const execute = (m: Mode, amount: number) => {
+    if (m === "fixed") {
+      const q = quoteFixed(market, amount);
+      if (q) addReceipt(demoReceipt({ kind: "fixed", paid: amount, received: q.ptOut, rate: q.apr, payout: q.payoutAtMaturity }));
+      setMarket((s) => lockFixed(s, amount));
+    } else {
+      const q = quoteBet(market, amount);
+      if (q) addReceipt(demoReceipt({ kind: "bet", paid: amount, received: q.ytOut, rate: q.breakEvenApr }));
+      setMarket((s) => buyBet(s, amount));
+    }
+  };
+  const onClaim = () => {
+    if (market.user.claimable > 0) addReceipt(demoReceipt({ kind: "claim", received: market.user.claimable }));
+    setMarket(claim);
+  };
+  const onRedeem = () => {
+    if (market.user.pt > 0) addReceipt(demoReceipt({ kind: "redeem", paid: market.user.pt, received: market.user.pt + market.user.claimable }));
+    setMarket(redeem);
+  };
   const reset = () => setMarket(initialMarket(rates?.windows.find((w) => w.days === 30)?.apr ?? SNAPSHOT.windows[1].apr));
 
   return (
@@ -66,8 +108,9 @@ export default function App() {
             <HowItWorks />
           </div>
           <div className="flex min-w-0 flex-col gap-6">
-            <PositionCard market={market} onClaim={() => setMarket(claim)} onRedeem={() => setMarket(redeem)} />
-            <LivePanel />
+            <PositionCard market={market} onClaim={onClaim} onRedeem={onRedeem} />
+            <StampBook receipts={receipts} onOpen={(r) => setOpen({ receipt: r, fresh: false, shared: false })} />
+            <LivePanel onReceipt={addReceipt} />
             <DemoControls
               market={market}
               onAdvance={(s) => setMarket((m) => advance(m, s))}
@@ -86,6 +129,7 @@ export default function App() {
           </p>
         </footer>
       </div>
+      <ReceiptModal receipt={open?.receipt ?? null} fresh={open?.fresh} shared={open?.shared} onClose={() => setOpen(null)} />
     </TooltipGroup>
   );
 }

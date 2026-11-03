@@ -16,6 +16,10 @@ Why now: sMUSD paid 0.03% annualized over the last 7 days, 2.06% over 30 days an
 
 The demo market is simulated in the browser with the same math as the contracts (Tigris stable curve with its 0.05% fee, yield index, settlement at maturity). The sMUSD rate tiles are read live from Mezo mainnet.
 
+## Receipts and stamps
+
+Every lock, rate bet, claim and redemption produces a receipt: a ticket with the amounts, the fixed or break-even rate, the maturity and, on testnet, the transaction, block and fee with an explorer link. Each receipt carries an ink stamp whose shape tells the action apart (circle for a fixed rate, frame for a rate bet, hexagon for a claim, ticket for a redemption), and every stamp collects in "Your stamps". Receipts come in Paper and Night styles, download as PNG, and "Copy link" encodes the receipt in the URL (`?r=`) so it reopens on any device. Demo receipts say plainly that no transaction was sent.
+
 ## Built on Mezo
 
 | Mezo contract | Mainnet address | What Tenor calls |

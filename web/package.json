@@ -13,6 +13,7 @@
     "@tailwindcss/vite": "^4.1.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "html-to-image": "^1.11.11",
     "lucide-react": "^0.536.0",
     "motion": "^12.43.0",
     "react": "^19.1.0",

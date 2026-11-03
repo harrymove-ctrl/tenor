@@ -223,6 +223,12 @@ export async function getTestMusd(s: Session, onStep: Step) {
   );
 }
 
+/** Block and fee for a confirmed transaction, for receipts. */
+export async function txMeta(hash: Hash) {
+  const r = await pub.getTransactionReceipt({ hash });
+  return { block: Number(r.blockNumber), feeBtc: Number(formatUnits(r.gasUsed * r.effectiveGasPrice, 18)) };
+}
+
 export function explainError(e: unknown): string {
   const err = e as { shortMessage?: string; message?: string; name?: string };
   if (err?.name === "UserRejectedRequestError" || /rejected|denied/i.test(err?.message ?? "")) return "You rejected the request in your wallet. Nothing was sent.";
