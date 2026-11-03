@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tenor deck preview</title>
+    <style>
+      body { margin: 0; background: #e7e5e4; font-family: system-ui, sans-serif; }
+      canvas { display: block; margin: 16px auto; box-shadow: 0 1px 4px rgb(0 0 0 / 0.2); max-width: calc(100% - 32px); height: auto; }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      import * as pdfjs from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
+      pdfjs.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+      const doc = await pdfjs.getDocument("tenor-deck.pdf").promise;
+      for (let i = 1; i <= doc.numPages; i++) {
+        const page = await doc.getPage(i);
+        const viewport = page.getViewport({ scale: 1.25 });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.id = `slide-${i}`;
+        document.body.append(canvas);
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      }
+      document.body.dataset.ready = String(doc.numPages);
+    </script>
+  </body>
+</html>
