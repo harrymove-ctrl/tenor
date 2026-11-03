@@ -82,7 +82,7 @@ export default function App() {
           <p>
             sMUSD rates are {rates?.source === "live" ? "read live from Mezo mainnet" : `a mainnet snapshot from ${SNAPSHOT.asOf}`}.
             {" "}
-            <a className="underline" href="/tenor-deck.pdf">Deck (PDF)</a> · Layout: <a className="underline" href="?">single</a> · <a className="underline" href="?layout=split">split</a>
+            <a className="underline" href={`${import.meta.env.BASE_URL}tenor-deck.pdf`}>Deck (PDF)</a> · Layout: <a className="underline" href="?">single</a> · <a className="underline" href="?layout=split">split</a>
           </p>
         </footer>
       </div>
