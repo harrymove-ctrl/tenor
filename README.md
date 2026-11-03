@@ -50,6 +50,21 @@ The invariant suite runs 256 runs x 64 calls with `fail_on_revert = true`. A mai
 
 One bug the tests caught: `combine` and `redeem` first burned tokens and then withdrew from sMUSD. Because `sMUSD.withdraw` can distribute fresh protocol yield inside the call, that yield found a zero YT supply and fell to fees. The fix withdraws first, then burns.
 
+## Testnet operations
+
+All scripts live in `ops/` (viem, idempotent, every transaction recorded in `deployments/31611.json`). The deployer key sits in `contracts/.env` (gitignored; see `contracts/.env.example`).
+
+| Command (in `ops/`) | What it does |
+|---|---|
+| `npm run deploy -- --dry` | Simulates factory and router creation on Mezo testnet with `eth_call` |
+| `npm run deploy` | Deploys TenorFactory, TenorRouter, the 12NOV26 and 31DEC26 markets and a Tigris stable pool for each |
+| `npm run seed` | Swaps testnet BTC for MUSD on Tigris, seeds each pool 1:1, then opens a discount to about a 3% implied rate. Pool size follows the BTC balance |
+| `npm run prove` | Live lifecycle checks (buy PT, buy YT, sMUSD yield, claim, combine, backing invariant) written to `docs/proof.md` |
+| `npm run prove -- --redeem` | After 2026-11-12 12:00 UTC, redeems the matured market and checks settlement |
+| `npm run keeper` | Harvests yield and trades the pool back inside 3% +/- 1% (single YT buys skew thin pools) |
+
+Rehearse everything first on a local chain: start anvil on port 8547 with chain id 31611, run `forge script script/LocalMezo.s.sol` from `contracts/` (see the script header), then run the same scripts with `TENOR_NETWORK=local`. The web app's live panel uses that chain with `?network=local`.
+
 ## Known product facts
 
 1. Tigris charges its stable fee (0.05%) on the full PT notional. A YT buy goes through PT, so the fee adds roughly 0.3 points to the YT break-even rate over eight weeks. A lower custom fee for the PT pool would need Mezo's fee manager.
