@@ -19,7 +19,7 @@ Track 1 (DeFi). Entirely new in Wave 2. Readiness: testnet deployment. TenorFact
 | Item | Link |
 |---|---|
 | Live app | TODO (deploy `web/` to Vercel or GitHub Pages) |
-| Code | TODO (push to github.com/harrymove-ctrl/tenor) |
+| Code | https://github.com/harrymove-ctrl/tenor |
 | Deck (PDF in repo) | `docs/tenor-deck.pdf` |
 | Video (under 2:15, public or unlisted) | TODO |
 | On-chain proof | `docs/proof.md` |
