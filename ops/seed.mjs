@@ -36,18 +36,44 @@ async function buyMusd(needed) {
   return r;
 }
 
+const GAS_RESERVE = 2n * 10n ** 15n; // 0.002 BTC kept for gas
+
+async function planDepths(pending) {
+  const fixed = Object.fromEntries(pending.map((m) => [m.label, BigInt(m.seed) * E18]));
+  if (process.env.SEED === "fixed" || !MEZO.router) return fixed;
+  const btc = await pub.getBalance({ address: account.address });
+  if (btc <= GAS_RESERVE) return fixed;
+  const route = [{ from: MEZO.btc, to: MEZO.musd, stable: false, factory: MEZO.poolFactory }];
+  const perBtc = (await pub.readContract({ address: MEZO.router, abi: routerAbi, functionName: "getAmountsOut", args: [E18 / 100n, route] }))[1] * 100n;
+  const budget = (((btc - GAS_RESERVE) * perBtc) / E18) * 95n / 100n + (await musdBalance()) - PROOF_BUDGET;
+  // Each market needs about 2.3x its depth (mint PT, match MUSD, inventory to sell). Split 1:2 by maturity.
+  const weights = pending.map((_, i) => BigInt(i + 1));
+  const total = weights.reduce((a, b) => a + b, 0n);
+  const out = {};
+  pending.forEach((m, i) => {
+    const depth = (budget * weights[i] * 10n) / (total * 23n);
+    out[m.label] = depth > fixed[m.label] ? (depth / E18) * E18 : fixed[m.label];
+  });
+  console.log("seed depths (MUSD per side):", Object.fromEntries(Object.entries(out).map(([k, v]) => [k, Number(v / E18)])));
+  return out;
+}
+
 async function main() {
   const d = readDeployments();
   if (!d.factory) throw new Error("Run npm run deploy first.");
 
   const pending = MATURITIES.filter((m) => !d.markets[m.label].seeded);
-  const needed = pending.reduce((s, m) => s + BigInt(m.seed) * E18 * 23n / 10n, 0n) + PROOF_BUDGET;
+  // Pool depth decides how much YT the market can sell, so put all spare
+  // capital into depth: SEED=auto (default) sizes pools from the BTC balance,
+  // SEED=fixed uses the per-market amounts in MATURITIES.
+  const depths = await planDepths(pending);
+  const needed = pending.reduce((s, m) => s + (depths[m.label] * 23n) / 10n, 0n) + PROOF_BUDGET;
   const swap = await buyMusd(needed);
   if (swap) record(d, "swap BTC for MUSD on Tigris", swap.transactionHash);
 
   for (const m of pending) {
     const entry = d.markets[m.label];
-    const depth = BigInt(m.seed) * E18;
+    const depth = depths[m.label];
     const [r0, r1] = await pub.readContract({ address: entry.pool, abi: poolAbi, functionName: "getReserves" });
     if (r0 === 0n && r1 === 0n) {
       const mintAmount = depth + depth / 4n; // the extra quarter is PT to sell
@@ -57,7 +83,7 @@ async function main() {
       const t1 = await write(`send PT to pool`, entry.pt, erc20, "transfer", [entry.pool, depth]);
       const t2 = await write(`send MUSD to pool`, MEZO.musd, erc20, "transfer", [entry.pool, depth]);
       const rl = await write(`add liquidity ${m.label}`, entry.pool, poolAbi, "mint", [account.address]);
-      record(d, `seed pool ${m.label} (${m.seed} PT + ${m.seed} MUSD)`, rl.transactionHash, { transfers: [t1.transactionHash, t2.transactionHash] });
+      record(d, `seed pool ${m.label} (${depth / E18} PT + ${depth / E18} MUSD)`, rl.transactionHash, { transfers: [t1.transactionHash, t2.transactionHash] });
     }
 
     await ensureApproval(entry.pt, d.router, 2n ** 128n);

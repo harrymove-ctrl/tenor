@@ -92,7 +92,9 @@ function Connected() {
         } else {
           const q = await quoteBet(market, raw);
           if (!q) return setQuote({ ok: false, text: "Too small for the pool right now." });
-          setQuote({ ok: true, text: `${fmt(Number(formatUnits(q.ytOut, 18)), 2)} YT for ${fmt(Number(formatUnits(q.cost, 18)), 4)} MUSD` });
+          const base = `${fmt(Number(formatUnits(q.ytOut, 18)), 2)} YT for ${fmt(Number(formatUnits(q.cost, 18)), 4)} MUSD`;
+          if (q.impact > 1) return setQuote({ ok: false, text: `Too large for this pool (${fmt(q.impact * 100, 0)}% price impact). Try a smaller amount.` });
+          setQuote({ ok: true, text: q.impact > 0.25 ? `${base} · ${fmt(q.impact * 100, 0)}% price impact` : base });
         }
       } catch (e) {
         setQuote({ ok: false, text: explainError(e) });

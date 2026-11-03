@@ -6,7 +6,8 @@
     "deploy": "NODE_USE_ENV_PROXY=1 node deploy.mjs",
     "seed": "NODE_USE_ENV_PROXY=1 node seed.mjs",
     "prove": "NODE_USE_ENV_PROXY=1 node prove.mjs",
-    "status": "NODE_USE_ENV_PROXY=1 node status.mjs"
+    "status": "NODE_USE_ENV_PROXY=1 node status.mjs",
+    "keeper": "NODE_USE_ENV_PROXY=1 node keeper.mjs"
   },
   "dependencies": {
     "viem": "2.33.2"

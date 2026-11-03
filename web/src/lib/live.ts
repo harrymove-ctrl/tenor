@@ -125,8 +125,13 @@ export async function quoteBet(m: MarketEntry, musdIn: string) {
   if (amount === 0n) return null;
   const ytOut = await pub.readContract({ address: DEPLOYMENT!.router, abi: routerAbi, functionName: "quoteYieldForMusd", args: [m.market, m.pool, amount] });
   if (ytOut === 0n) return null;
-  const cost = await pub.readContract({ address: DEPLOYMENT!.router, abi: routerAbi, functionName: "quoteBuyYield", args: [m.market, m.pool, ytOut] });
-  return { amount, ytOut, cost };
+  const [cost, unit] = await Promise.all([
+    pub.readContract({ address: DEPLOYMENT!.router, abi: routerAbi, functionName: "quoteBuyYield", args: [m.market, m.pool, ytOut] }),
+    pub.readContract({ address: DEPLOYMENT!.router, abi: routerAbi, functionName: "quoteBuyYield", args: [m.market, m.pool, 10n ** 18n] }),
+  ]);
+  // Price impact: cost per YT for this size against cost per YT for 1 YT.
+  const impact = unit > 0n ? Number(cost * 10n ** 18n) / Number(ytOut * unit) - 1 : 0;
+  return { amount, ytOut, cost, impact };
 }
 
 // Writes. Each step reports its hash so the UI can show progress and links.
