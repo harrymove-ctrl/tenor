@@ -9,3 +9,6 @@ web/dist/
 .DS_Store
 *.log
 artifacts/
+web/qa/artifacts/
+web/test-results/
+.claude/
