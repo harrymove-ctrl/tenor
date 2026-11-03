@@ -5,7 +5,7 @@ import { PositionCard } from "@/components/PositionCard";
 import { RateStrip } from "@/components/RateStrip";
 import { DemoControls } from "@/components/DemoControls";
 import { HowItWorks } from "@/components/HowItWorks";
-import { TestnetCard } from "@/components/TestnetCard";
+import { LivePanel } from "@/components/LivePanel";
 import { advance, buyBet, claim, initialMarket, lockFixed, redeem, setRates, type Market } from "@/lib/sim";
 import { fetchRates, SNAPSHOT, type Rates } from "@/lib/rates";
 
@@ -67,7 +67,7 @@ export default function App() {
           </div>
           <div className="flex min-w-0 flex-col gap-6">
             <PositionCard market={market} onClaim={() => setMarket(claim)} onRedeem={() => setMarket(redeem)} />
-            <TestnetCard />
+            <LivePanel />
             <DemoControls
               market={market}
               onAdvance={(s) => setMarket((m) => advance(m, s))}
