@@ -10,6 +10,10 @@ Tenor
 
 Fixed-rate MUSD on Mezo: lock what sMUSD pays, or trade it.
 
+## Project category
+
+Fixed-rate savings and yield trading
+
 ## Track and status
 
 Track 1 (DeFi). Entirely new in Wave 2. Readiness: testnet deployment. TenorFactory `0x6326349e8ebb72e14a18d280f7cf54611c904945` and TenorRouter `0xc012212d50946318f9236547949e73fe9f2fbd71` on Mezo testnet, with markets maturing 2026-11-12 and 2026-12-31; the live proof passed 6 of 6 checks (see `docs/proof.md`).
@@ -20,9 +24,9 @@ Track 1 (DeFi). Entirely new in Wave 2. Readiness: testnet deployment. TenorFact
 |---|---|
 | Live app | https://harrymove-ctrl.github.io/tenor/ |
 | Code | https://github.com/harrymove-ctrl/tenor |
-| Deck (PDF in repo) | `docs/tenor-deck.pdf` |
-| Video (under 2:15, public or unlisted) | TODO |
-| On-chain proof | `docs/proof.md` |
+| Deck | https://harrymove-ctrl.github.io/tenor/tenor-deck.pdf |
+| Video (under 2:15, public or unlisted, not private) | TODO |
+| On-chain proof | https://github.com/harrymove-ctrl/tenor/blob/main/docs/proof.md |
 
 ## Overview
 
@@ -41,9 +45,21 @@ What shipped this wave:
 
 Business model: 5% of harvested sMUSD yield, plus Tigris swap fees for liquidity providers. Nothing depends on emissions.
 
+## Target group
+
+MUSD holders who want a known return, and DeFi users who want a position on Mezo's protocol revenue. This fits Track 1 (DeFi): both sides add new reasons to hold MUSD and sMUSD. Experience level: comfortable with an EVM wallet; the demo needs no wallet at all. Global, desktop and mobile web.
+
+## Tech stack
+
+Solidity and Foundry for contracts; Tigris stable pools and sMUSD on Mezo; React, Vite, Tailwind and viem for the app; GitHub Pages for hosting.
+
+## Chain deployed on
+
+Mezo (testnet)
+
 ## Team
 
-Harry Phan (GitHub harrymove-ctrl): contracts, app, ops.
+Harry Phan: contracts, app, ops. GitHub harrymove-ctrl. X or LinkedIn: TODO.
 
 ## Wave 3 plan
 

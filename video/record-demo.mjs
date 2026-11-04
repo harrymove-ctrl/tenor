@@ -158,7 +158,7 @@ async function main() {
   await wait(1100);
 
   // 1. Problem
-  await beat("s1", `sMUSD paid <b>0.03%</b> over the last 7 days and <b>2.06%</b> over 30. Savers can't plan on that.`);
+  await beat("s1", `sMUSD paid <b>almost nothing</b> over the last 7 days and <b>about 2%</b> over 30. Savers can't plan on that.`);
   await camera(page.getByRole("region", { name: "Rates" }), 1.45, 5200);
   await moveTo(page.getByRole("button", { name: "sMUSD paid, 7 days" }));
   await wait(2600);
